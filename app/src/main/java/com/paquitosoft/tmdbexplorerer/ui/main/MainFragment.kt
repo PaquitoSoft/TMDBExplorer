@@ -3,9 +3,11 @@ package com.paquitosoft.tmdbexplorerer.ui.main
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import androidx.core.app.ActivityOptionsCompat
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
+import androidx.leanback.widget.ImageCardView
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.ListRowPresenter
 import androidx.leanback.widget.OnItemViewClickedListener
@@ -13,9 +15,6 @@ import androidx.leanback.widget.OnItemViewSelectedListener
 import androidx.lifecycle.lifecycleScope
 import com.paquitosoft.tmdbexplorerer.R
 import com.paquitosoft.tmdbexplorerer.data.MoviesRepository
-import com.paquitosoft.tmdbexplorerer.data.server.RemoteConnection
-import com.paquitosoft.tmdbexplorerer.data.server.RemoteService
-import com.paquitosoft.tmdbexplorerer.data.server.toDomainMovie
 import com.paquitosoft.tmdbexplorerer.domain.Movie
 import com.paquitosoft.tmdbexplorerer.ui.detail.DetailActivity
 import kotlinx.coroutines.launch
@@ -23,6 +22,7 @@ import kotlinx.coroutines.launch
 class MainFragment: BrowseSupportFragment() {
 
     private lateinit var moviesRepository: MoviesRepository
+    private val brackgroundState = BackgroundState(this)
 
     private suspend fun buildAdapter(): ArrayObjectAdapter {
         // Adapter dictates how elements are rendered in the screen
@@ -88,13 +88,29 @@ class MainFragment: BrowseSupportFragment() {
             adapter = buildAdapter()
         }
 
-        onItemViewClickedListener = OnItemViewClickedListener { _, movie, _, _ ->
+        onItemViewClickedListener = OnItemViewClickedListener { viewHolder, movie, _, _ ->
+            // This defines the transition effect we will be using when navigating to the new view
+            val bundle = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                requireActivity(),
+                (viewHolder.view as ImageCardView).mainImageView,
+                DetailActivity.SHARED_ELEMENT_NAME
+            ).toBundle()
+
             // Here we're saying we want to navigate the to detail activity
             // and pass the clicked movie as part of the context to the new activity
             val intent = Intent(requireContext(), DetailActivity::class.java).apply {
                 putExtra(DetailActivity.MOVIE_EXTRA, movie as Movie)
             }
-            startActivity(intent)
+
+            startActivity(intent, bundle)
+        }
+
+        onItemViewSelectedListener = OnItemViewSelectedListener { _, movie, _, _ ->
+            // This line conditionally casts the receive movie param (Any)
+            // and only apply the code block below if it's not null
+            (movie as? Movie)?.let {
+                brackgroundState.loadUrl(it.backdrop)
+            }
         }
     }
 }
